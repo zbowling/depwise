@@ -1044,7 +1044,7 @@ packages:
 - pypi: .
   name: depwise
   version: 0.1.0a1
-  sha256: 0a524262de59c838be1aea23b49c242e1000345b0235927aca53d956ffa4a478
+  sha256: dc5bbd584809636c3ebbe84d5cff23f33b8c361ddb51f18d53ac857d3b1fe2f0
   requires_python: '>=3.9'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.3.9-pyhd8ed1ab_1.conda

@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "depwise"
-description = "A fast, comprehensive dependency analyzer for Python projects that detects unused, missing, and optional dependencies across multiple environments. Supports requirements.txt, conda, pyproject.toml, pixi, and setup.py without requiring installation. Features intelligent pattern detection for optional dependencies, synthetic fast-pass analysis, and validation against actual environments. Designed for pre-commit hooks and CI/CD pipelines."
+description = "A fast, comprehensive dependency analyzer for Python to detect unused, missing, and optional dependencies."
 requires-python = ">=3.9"
 readme = "README.md"
 authors = [
@@ -117,7 +117,7 @@ lint = { features = ["lint"], no-default-feature = true, solve-group = "default"
 # github_url = "https://github.com/<user or organization>/<project>/"
 
 [tool.tbump.version]
-current = "0.1.0"
+current = "0.1.0-alpha.1"
 
 # Example of a semver regexp.
 # Make sure this matches current_version before
@@ -128,7 +128,7 @@ regex = '''
   (?P<minor>\d+)
   \.
   (?P<patch>\d+)
-  (rc
+  (-alpha.
     (?P<candidate>\d+)
   )?
   '''

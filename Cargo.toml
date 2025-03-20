@@ -10,6 +10,7 @@ license = "MIT"
 license-file = "LICENSE"
 readme = "README.md"
 repository = "https://github.com/zbowling/depwise"
+description = "A fast, comprehensive dependency analyzer for Python to detect unused, missing, and optional dependencies."
 authors = ["Zac Bowling <zac@zacbowling.com>"]
 
 [workspace.dependencies]
@@ -30,4 +31,13 @@ minijinja = "2.8.0"
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"
+strip = true
 lto = "thin"
+
+[profile.release]
+strip = true
+lto = "fat"
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+unreachable_pub = "warn"
