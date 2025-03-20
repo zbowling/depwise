@@ -74,3 +74,6 @@ docs/_build/
 # pixi environments
 .pixi
 *.egg-info
+
+# pixi lock file
+pixi.lock
