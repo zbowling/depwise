@@ -1,5 +1,7 @@
 # Depwise
 
+> Depwise is pre-alpha software. It is not ready.
+
 A fast, comprehensive dependency analyzer for Python projects that detects unused, missing, and optional dependencies across multiple environments. Supports requirements.txt, conda, pyproject.toml, pixi, and setup.py without requiring installation. Features intelligent pattern detection for optional dependencies, synthetic fast-pass analysis, and validation against actual environments. Designed for pre-commit hooks and CI/CD pipelines.
 
 ![Depwise Logo](depwise_logo.png)
