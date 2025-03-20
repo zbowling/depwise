@@ -4,14 +4,60 @@ build-backend = "maturin"
 
 [project]
 name = "depwise"
+description = "A fast, comprehensive dependency analyzer for Python projects that detects unused, missing, and optional dependencies across multiple environments. Supports requirements.txt, conda, pyproject.toml, pixi, and setup.py without requiring installation. Features intelligent pattern detection for optional dependencies, synthetic fast-pass analysis, and validation against actual environments. Designed for pre-commit hooks and CI/CD pipelines."
 requires-python = ">=3.9"
+readme = "README.md"
+authors = [
+    { name = "Zac Bowling", email = "zac@zacbowling.com" }
+]
+maintainers = [
+    { name = "Zac Bowling", email = "zac@zacbowling.com" }
+]
 classifiers = [
-    "Programming Language :: Rust",
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: System :: Software Distribution",
+    "Typing :: Typed",
 ]
 dynamic = ["version"]
 license = { text = "MIT" }
+keywords = [
+    "dependencies",
+    "dependency analysis",
+    "package management",
+    "python",
+    "conda",
+    "rust",
+    "tool",
+    "requirements",
+    "pyproject",
+    "static-analysis",
+    "linter",
+    "lint",
+    "pre-commit",
+    "optional dependencies",
+    "dependency checker",
+    "development tools",
+    "code quality",
+    "dependency management",
+]
+[project.urls]
+Homepage = "https://github.com/zbowling/depwise"
+Repository = "https://github.com/zbowling/depwise.git"
+Issues = "https://github.com/zbowling/depwise/issues"
+Changelog = "https://github.com/zbowling/depwise/blob/master/CHANGELOG.md"
 
 [tool.maturin]
 manifest-path = "crates/depwise/Cargo.toml"

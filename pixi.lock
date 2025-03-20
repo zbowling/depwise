@@ -1043,8 +1043,8 @@ packages:
   timestamp: 1734475348772
 - pypi: .
   name: depwise
-  version: 0.1.0
-  sha256: 539d7d90c0203929fee16dbb92dfafcb23372dd8525a05df5a5c54d4945d305d
+  version: 0.1.0a1
+  sha256: 0a524262de59c838be1aea23b49c242e1000345b0235927aca53d956ffa4a478
   requires_python: '>=3.9'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.3.9-pyhd8ed1ab_1.conda

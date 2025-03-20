@@ -2,8 +2,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 /// CLI for depwise
 #[derive(Debug, Parser)]
-#[command(name = "depwise")]
-#[command(about = "Figure out what dependencies you need or don't need")]
+#[command(name = "depwise", version, author, about)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -12,6 +11,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     Check(CheckArgs),
+    CheckPackage(CheckPackageArgs),
 }
 
 #[derive(Debug, Args)]
@@ -71,6 +71,24 @@ impl From<EnvironmentBackend> for depwise_analysis::EnvironmentBackend {
     }
 }
 
+/// Check a wheel, sdist, or conda package that all declared dependencies match what is used in the package.
+#[derive(Debug, Parser)]
+#[command(name = "check-package")]
+#[command(about = "Check a wheel, sdist, or conda package")]
+struct CheckPackageArgs {
+    /// Path to the package
+    #[arg(value_hint = clap::ValueHint::FilePath, value_name = "FILE", required = true)]
+    package: PathBuf,
+
+    /// Backend to use for checking dependencies
+    #[arg(long, value_enum, default_value = "auto")]
+    backend: EnvironmentBackend,
+
+    /// Package extras (python wheel or sdist only)
+    #[arg(long, name = "extra", value_name = "EXTRA")]
+    extras: Vec<String>,
+}
+
 /// Subcommand for checking dependencies
 #[derive(Debug, Parser)]
 #[command(name = "check")]
@@ -115,6 +133,12 @@ fn main() {
                 environment,
                 check_args.backend.into(),
                 &check_args.path,
+            );
+        }
+        Commands::CheckPackage(check_package_args) => {
+            println!(
+                "Checking dependencies for {}",
+                check_package_args.package.to_string_lossy()
             );
         }
     }
