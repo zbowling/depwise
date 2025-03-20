@@ -1,0 +1,17 @@
+[package]
+name = "depwise-analysis"
+description = "Analyze dependency trees"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+toml = { workspace = true }
+pep508_rs = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+rustpython-parser = { workspace = true }
+minijinja = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

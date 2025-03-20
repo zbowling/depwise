@@ -1,0 +1,52 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+exclude: (^.pixi/|.snap|.magic)
+repos:
+  - repo: local
+    hooks:
+      - id: check-yaml
+        name: Check YAML
+        entry: pixi run --environment=lint check-yaml
+        language: system
+        types: [yaml]
+        stages: [pre-commit, manual]
+      - id: end-of-file
+        name: Check end-of-file
+        entry: pixi run --environment=lint end-of-file-fixer
+        language: system
+        types: [text]
+        stages: [pre-commit, manual]
+      - id: trailing-whitespace
+        name: Fix trailing whitespace
+        entry: pixi run --environment=lint trailing-whitespace-fixer
+        language: system
+        types: [text]
+        stages: [pre-commit, manual]
+      - id: ruff
+        name: Ruff lint
+        entry: pixi run --environment=lint ruff-lint
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+        stages: [pre-commit, manual]
+      - id: ruff-format
+        name: Ruff format
+        entry: pixi run --environment=lint ruff-format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+        stages: [pre-commit, manual]
+      - id: shellcheck
+        name: Check shell scripts
+        entry: pixi run --environment=lint shellcheck
+        language: system
+        types: [shell]
+        stages: [pre-commit, manual]
+      # GitHub Actions
+      - id: actionlint
+        name: Lint GitHub Actions workflow files
+        language: system
+        entry: pixi run --environment=lint actionlint
+        types: [yaml]
+        files: ^\.github/workflows/
+        stages: [pre-commit, manual]

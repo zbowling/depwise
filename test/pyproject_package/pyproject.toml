@@ -1,0 +1,16 @@
+[project]
+name = "pyproject-package"
+version = "0.1.0"
+description = "Example package for testing deps"
+readme = "README.md"
+authors = [
+    { name = "Zac Bowling", email = "zac@zacbowling.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=2.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,116 @@
+[build-system]
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "depwise"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dynamic = ["version"]
+license = { text = "MIT" }
+
+[tool.maturin]
+manifest-path = "crates/depwise/Cargo.toml"
+module-name = "depwise"
+bindings = "bin"
+strip = true
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64", "win-64"]
+
+[tool.pixi.pypi-dependencies]
+depwise = { path = ".", editable = true }
+
+[tool.pixi.dependencies]
+# Needed for the citation
+cargo-nextest = ">=0.9.78"
+cffconvert = ">=2.0.0,<3"
+tbump = ">=6.9"
+mypy = ">=1.15"
+rust = ">=1.83.0"
+
+[tool.pixi.feature.lint.dependencies]
+actionlint = ">=1.7.4,<2"
+pre-commit = ">=3.7.1,<4"
+pre-commit-hooks = ">=4.6.0,<5"
+prettier = ">=3.4.2,<4"
+ruff = ">=0.4.8,<0.5"
+shellcheck = ">=0.10.0,<0.11"
+taplo = ">=0.9.1,<0.10"
+typos = ">=1.23.1,<2"
+
+[tool.pixi.feature.lint.tasks]
+actionlint = { cmd = "actionlint", env = { SHELLCHECK_OPTS = "-e SC2086,SC2129" } }
+cargo-clippy = "cargo clippy --all-targets --workspace -- -D warnings"
+cargo-fmt = "cargo fmt --all"
+check-openssl = "python tests/scripts/check-openssl.py"
+lint = "pre-commit run --all-files --hook-stage=manual"
+pre-commit-install = "pre-commit install --install-hooks"
+pre-commit-run = "pre-commit run --all-files"
+prettier-fmt = { cmd = "prettier --write" }
+ruff-format = "ruff format --force-exclude"
+ruff-lint = "ruff check --fix --exit-non-zero-on-fix --force-exclude"
+toml-format = { cmd = "taplo fmt", env = { RUST_LOG = "warn" } }
+toml-lint = "taplo lint --verbose **/pixi.toml"
+typecheck-python = "mypy"
+typos = "typos --write-changes --force-exclude"
+
+[tool.pixi.tasks]
+
+[tool.pixi.environments]
+default = { features = ["lint"], solve-group = "default" }
+lint = { features = ["lint"], no-default-feature = true, solve-group = "default" }
+
+[tool.tbump]
+# Uncomment this if your project is hosted on GitHub:
+# github_url = "https://github.com/<user or organization>/<project>/"
+
+[tool.tbump.version]
+current = "0.1.0"
+
+# Example of a semver regexp.
+# Make sure this matches current_version before
+# using tbump
+regex = '''
+  (?P<major>\d+)
+  \.
+  (?P<minor>\d+)
+  \.
+  (?P<patch>\d+)
+  (rc
+    (?P<candidate>\d+)
+  )?
+  '''
+
+[tool.tbump.git]
+message_template = "chore: Bump to {new_version}"
+tag_template = "v{new_version}"
+
+# For each file to patch, add a [[tool.tbump.file]] config
+# section containing the path of the file, relative to the
+# tbump.toml location.
+[[tool.tbump.file]]
+src = "..."
+
+[[tool.tbump.file]]
+search = '^version = "{current_version}"'
+src = "Cargo.toml"
+
+# You can specify a list of commands to
+# run after the files have been patched
+# and before the git commit is made
+
+#  [[tool.tbump.before_commit]]
+#  name = "check changelog"
+#  cmd = "grep -q {new_version} Changelog.rst"
+
+# Or run some commands after the git tag and the branch
+# have been pushed:
+#  [[tool.tbump.after_push]]
+#  name = "publish"
+#  cmd = "./publish.sh"
