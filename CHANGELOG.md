@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Split up `depwise` into multiple commands to test packages and projects.
+
+## [0.1.0-alpha.1] - 2025-03-20
+
+Initial test release of `depwise` command to analyze Python dependencies.
+Not ready for production use but getting release workflows working.
+
 ### Added
 
 - Initial release of `depwise` command to analyze Python dependencies.

@@ -65,9 +65,10 @@ module-name = "depwise"
 bindings = "bin"
 strip = true
 
-[tool.pixi.project]
-channels = ["conda-forge"]
+[tool.pixi.workspace]
+channels = ["https://repo.prefix.dev/pixi-build-backends", "conda-forge"]
 platforms = ["osx-arm64", "linux-64", "linux-aarch64", "win-64"]
+
 
 [tool.pixi.pypi-dependencies]
 depwise = { path = ".", editable = true }
@@ -112,12 +113,16 @@ typos = "typos --write-changes --force-exclude"
 default = { features = ["lint"], solve-group = "default" }
 lint = { features = ["lint"], no-default-feature = true, solve-group = "default" }
 
+# TODO: add support for pixi build
+#[tool.pixi.package.build]
+#backend = { name = "pixi-build-python", version = "0.1.*" }
+
 [tool.tbump]
 # Uncomment this if your project is hosted on GitHub:
 # github_url = "https://github.com/<user or organization>/<project>/"
 
 [tool.tbump.version]
-current = "0.1.0-alpha.1"
+current = "0.1.0-alpha.2"
 
 # Example of a semver regexp.
 # Make sure this matches current_version before
@@ -128,8 +133,8 @@ regex = '''
   (?P<minor>\d+)
   \.
   (?P<patch>\d+)
-  (-alpha.
-    (?P<candidate>\d+)
+  (\-
+    (?P<extra>.+)
   )?
   '''
 
@@ -140,9 +145,6 @@ tag_template = "v{new_version}"
 # For each file to patch, add a [[tool.tbump.file]] config
 # section containing the path of the file, relative to the
 # tbump.toml location.
-[[tool.tbump.file]]
-src = "..."
-
 [[tool.tbump.file]]
 search = '^version = "{current_version}"'
 src = "Cargo.toml"
