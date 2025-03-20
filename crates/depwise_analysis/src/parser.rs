@@ -13,11 +13,18 @@ pub struct PythonImport {
     pub alias: Option<String>,
     pub line_number: usize,
     pub relative_level: usize,
+    /// Whether this import is at the top level of the module (not inside any function/class)
+    pub is_top_level_import: bool,
+    /// Whether this import is likely guarded by a try/except block that catches ImportError
+    pub is_likely_exception_guarded: bool,
 }
 
 /// Parser for Python source code
 pub struct PythonParser {
     source: String,
+    nesting_level: usize,
+    in_try_block: bool,
+    has_import_error_handler: bool,
 }
 
 impl PythonParser {
@@ -29,6 +36,9 @@ impl PythonParser {
         );
         Self {
             source: source.to_string(),
+            nesting_level: 0,
+            in_try_block: false,
+            has_import_error_handler: false,
         }
     }
 
@@ -38,7 +48,7 @@ impl PythonParser {
     }
 
     /// Process a single statement and collect any imports
-    fn process_statement(&self, stmt: &ast::Stmt, imports: &mut Vec<PythonImport>) {
+    fn process_statement(&mut self, stmt: &ast::Stmt, imports: &mut Vec<PythonImport>) {
         match stmt {
             ast::Stmt::Import(import) => {
                 for name in &import.names {
@@ -50,6 +60,8 @@ impl PythonParser {
                         alias: name.asname.as_ref().map(|n| n.to_string()),
                         line_number: self.get_line_number(import.range.start().into()),
                         relative_level: 0,
+                        is_top_level_import: self.nesting_level == 0,
+                        is_likely_exception_guarded: self.in_try_block && self.has_import_error_handler,
                     });
                 }
             }
@@ -80,51 +92,96 @@ impl PythonParser {
                     alias: None, // Aliases are handled per imported name
                     line_number: self.get_line_number(import_from.range.start().into()),
                     relative_level: level,
+                    is_top_level_import: self.nesting_level == 0,
+                    is_likely_exception_guarded: self.in_try_block && self.has_import_error_handler,
                 });
             }
             // Recursively process statements in other contexts
             ast::Stmt::FunctionDef(func) => {
+                self.nesting_level += 1;
                 for stmt in &func.body {
                     self.process_statement(stmt, imports);
                 }
+                self.nesting_level -= 1;
             }
             ast::Stmt::AsyncFunctionDef(func) => {
+                self.nesting_level += 1;
                 for stmt in &func.body {
                     self.process_statement(stmt, imports);
                 }
+                self.nesting_level -= 1;
             }
             ast::Stmt::ClassDef(class) => {
+                self.nesting_level += 1;
                 for stmt in &class.body {
                     self.process_statement(stmt, imports);
                 }
+                self.nesting_level -= 1;
             }
             ast::Stmt::If(if_stmt) => {
+                self.nesting_level += 1;
                 for stmt in &if_stmt.body {
                     self.process_statement(stmt, imports);
                 }
                 for stmt in &if_stmt.orelse {
                     self.process_statement(stmt, imports);
                 }
+                self.nesting_level -= 1;
             }
             ast::Stmt::While(while_stmt) => {
+                self.nesting_level += 1;
                 for stmt in &while_stmt.body {
                     self.process_statement(stmt, imports);
                 }
+                self.nesting_level -= 1;
             }
             ast::Stmt::For(for_stmt) => {
+                self.nesting_level += 1;
                 for stmt in &for_stmt.body {
                     self.process_statement(stmt, imports);
                 }
+                self.nesting_level -= 1;
             }
             ast::Stmt::AsyncFor(for_stmt) => {
+                self.nesting_level += 1;
                 for stmt in &for_stmt.body {
                     self.process_statement(stmt, imports);
                 }
+                self.nesting_level -= 1;
             }
             ast::Stmt::Try(try_stmt) => {
+                self.in_try_block = true;
+                self.has_import_error_handler = false;
+
+                // Check for ImportError handlers before processing the try block
+                for handler in &try_stmt.handlers {
+                    if let Some(except_handler) = handler.as_except_handler() {
+                        // Check if this handler catches ImportError or is a catch-all
+                        if let Some(exception_type) = &except_handler.type_ {
+                            if let ast::Expr::Name(name) = exception_type.as_ref() {
+                                let exception_name = name.id.to_string();
+                                if exception_name == "ImportError"
+                                    || exception_name == "Exception"
+                                    || exception_name == "BaseException"
+                                    || exception_name == "ModuleNotFoundError" {
+                                    self.has_import_error_handler = true;
+                                    break;
+                                }
+                            }
+                        } else {
+                            // No exception type specified means it's a catch-all
+                            self.has_import_error_handler = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Now process the try block body with the correct handler state
                 for stmt in &try_stmt.body {
                     self.process_statement(stmt, imports);
                 }
+
+                // Process the handlers
                 for handler in &try_stmt.handlers {
                     if let Some(except_handler) = handler.as_except_handler() {
                         for stmt in &except_handler.body {
@@ -132,12 +189,17 @@ impl PythonParser {
                         }
                     }
                 }
+
                 for stmt in &try_stmt.orelse {
                     self.process_statement(stmt, imports);
                 }
+
                 for stmt in &try_stmt.finalbody {
                     self.process_statement(stmt, imports);
                 }
+
+                self.in_try_block = false;
+                self.has_import_error_handler = false;
             }
             _ => {
                 trace!("Skipping statement: {:?}", stmt);
@@ -442,6 +504,8 @@ class Class3:
         );
         assert_eq!(imports[0].line_number, 2);
         assert_eq!(imports[0].relative_level, 0);
+        assert!(imports[0].is_top_level_import);
+        assert!(!imports[0].is_likely_exception_guarded);
 
         // Check second import (star import)
         assert_eq!(imports[1].module_name, Some("another.package".to_string()));
@@ -449,6 +513,8 @@ class Class3:
         assert!(!imports[1].is_relative);
         assert_eq!(imports[1].imported_names, vec!["*".to_string()]);
         assert_eq!(imports[1].line_number, 7);
+        assert!(imports[1].is_top_level_import);
+        assert!(!imports[1].is_likely_exception_guarded);
 
         // Check third import (with alias)
         assert_eq!(
@@ -459,6 +525,8 @@ class Class3:
         assert!(!imports[2].is_relative);
         assert_eq!(imports[2].alias, Some("short_name".to_string()));
         assert_eq!(imports[2].line_number, 8);
+        assert!(imports[2].is_top_level_import);
+        assert!(!imports[2].is_likely_exception_guarded);
 
         // Check fourth import (inside try block)
         assert_eq!(imports[3].module_name, Some("torch".to_string()));
@@ -466,6 +534,8 @@ class Class3:
         assert!(!imports[3].is_relative);
         assert_eq!(imports[3].alias, None);
         assert_eq!(imports[3].line_number, 12);
+        assert!(!imports[3].is_top_level_import);
+        assert!(imports[3].is_likely_exception_guarded);
 
         // Check fifth import (relative import with single dot)
         assert_eq!(imports[4].module_name, None);
@@ -477,6 +547,9 @@ class Class3:
         );
         assert_eq!(imports[4].line_number, 18);
         assert_eq!(imports[4].relative_level, 1);
+        assert!(imports[4].is_top_level_import);
+        assert!(!imports[4].is_likely_exception_guarded);
+
         // Check sixth import (relative import with two dots)
         assert_eq!(imports[5].module_name, None);
         assert!(imports[5].is_from_import);
@@ -487,6 +560,8 @@ class Class3:
         );
         assert_eq!(imports[5].line_number, 20);
         assert_eq!(imports[5].relative_level, 2);
+        assert!(imports[5].is_top_level_import);
+        assert!(!imports[5].is_likely_exception_guarded);
 
         // Check seventh import (relative import with three dots)
         assert_eq!(imports[6].module_name, Some("hello".to_string()));
@@ -498,6 +573,8 @@ class Class3:
         );
         assert_eq!(imports[6].line_number, 22);
         assert_eq!(imports[6].relative_level, 3);
+        assert!(imports[6].is_top_level_import);
+        assert!(!imports[6].is_likely_exception_guarded);
 
         // Check eighth import (inside class)
         assert_eq!(imports[7].module_name, Some("os".to_string()));
@@ -505,6 +582,8 @@ class Class3:
         assert!(!imports[7].is_relative);
         assert!(imports[7].imported_names.is_empty());
         assert_eq!(imports[7].line_number, 26);
+        assert!(!imports[7].is_top_level_import);
+        assert!(!imports[7].is_likely_exception_guarded);
 
         // Check ninth import (inside class)
         assert_eq!(imports[8].module_name, Some("sys".to_string()));
@@ -512,6 +591,8 @@ class Class3:
         assert!(!imports[8].is_relative);
         assert!(imports[8].imported_names.is_empty());
         assert_eq!(imports[8].line_number, 30);
+        assert!(!imports[8].is_top_level_import);
+        assert!(!imports[8].is_likely_exception_guarded);
 
         // Check tenth import (inside class)
         assert_eq!(imports[9].module_name, Some("ok".to_string()));
@@ -519,6 +600,62 @@ class Class3:
         assert!(!imports[9].is_relative);
         assert!(imports[9].imported_names.is_empty());
         assert_eq!(imports[9].line_number, 34);
+        assert!(!imports[9].is_top_level_import);
+        assert!(!imports[9].is_likely_exception_guarded);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_guarded_imports() -> Result<(), AnalysisError> {
+        init_tracing();
+        let source = r#"
+try:
+    import optional_package
+except ImportError:
+    print("optional_package not found")
+
+try:
+    import another_optional
+except Exception:
+    print("another_optional not found")
+
+try:
+    import third_optional
+except:
+    print("third_optional not found")
+
+def function():
+    try:
+        import nested_optional
+    except ImportError:
+        print("nested_optional not found")
+"#;
+
+        let mut parser = PythonParser::new(source);
+        let imports = parser.parse_imports()?;
+
+        assert_eq!(imports.len(), 4);
+
+        // Check first import (with ImportError handler)
+        assert_eq!(imports[0].module_name, Some("optional_package".to_string()));
+        assert!(imports[0].is_likely_exception_guarded);
+        assert!(imports[0].is_top_level_import);
+
+        // Check second import (with generic Exception handler)
+        assert_eq!(imports[1].module_name, Some("another_optional".to_string()));
+        assert!(imports[1].is_likely_exception_guarded);
+        assert!(imports[1].is_top_level_import);
+
+        // Check third import (with catch-all handler)
+        assert_eq!(imports[2].module_name, Some("third_optional".to_string()));
+        assert!(imports[2].is_likely_exception_guarded);
+        assert!(imports[2].is_top_level_import);
+
+        // Check fourth import (nested in function with ImportError handler)
+        assert_eq!(imports[3].module_name, Some("nested_optional".to_string()));
+        assert!(imports[3].is_likely_exception_guarded);
+        assert!(!imports[3].is_top_level_import);
 
         Ok(())
     }
