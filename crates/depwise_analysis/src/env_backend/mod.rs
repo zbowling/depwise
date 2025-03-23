@@ -1,3 +1,3 @@
+mod pixi;
 mod synthetic;
 mod uv;
-mod pixi;

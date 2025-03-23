@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use crate::env_parser::{Dependency, PyPIRequirement};
 use crate::error::AnalysisError;
+use crate::project::{Dependency, PyPIRequirement};
 
 enum RequirementLine {
     Dependency(Dependency),
@@ -72,7 +72,7 @@ fn parse_requirement_line(line: &str) -> Result<RequirementLine, AnalysisError> 
 }
 
 /// Parse a requirements.txt file and return a list of dependencies
-pub(crate) fn parse_dependencies_file(file_path: &Path) -> Result<Vec<Dependency>, AnalysisError> {
+pub(crate) fn parse(file_path: &Path) -> Result<Vec<Dependency>, AnalysisError> {
     parse_dependencies_file_with_visited(&file_path, &mut Vec::new())
 }
 
@@ -160,7 +160,7 @@ mod tests {
         let mut other_file = File::create(&other_file_path).unwrap();
         writeln!(other_file, "torch==2.6.0").unwrap();
 
-        let deps = parse_dependencies_file(&file_path)?;
+        let deps = parse(&file_path)?;
         assert_eq!(deps.len(), 4);
 
         // Test that we can parse the content directly

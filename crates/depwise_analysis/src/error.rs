@@ -7,8 +7,8 @@ pub enum AnalysisError {
     ParseFileError(String, String, String),
     #[error("Failed to parse pyproject.toml: {0}")]
     PyProjectTomlError(String),
-    #[error("Unsupported dependency file: {0}")]
-    UnsupportedDependencyFile(String),
+    #[error("Unsupported project format: {0}")]
+    UnsupportedProjectFormat(String),
     #[error("Failed to read file {0}: {1}")]
     FileReadError(String, String),
     #[error("Failed to parse dependency {0}")]

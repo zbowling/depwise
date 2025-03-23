@@ -8,7 +8,7 @@ use crate::error::AnalysisError;
 
 use pep508_rs::Requirement;
 
-use crate::env_parser::Dependency;
+use crate::project::Dependency;
 
 fn parse_dependency_string(dep_str: &str) -> Result<Dependency, AnalysisError> {
     let requirement = Requirement::from_str(dep_str)
@@ -16,10 +16,53 @@ fn parse_dependency_string(dep_str: &str) -> Result<Dependency, AnalysisError> {
     Ok(Dependency::PyPI(requirement))
 }
 
-fn extract_dependencies_from_table(table: &Value) -> Result<Vec<Dependency>, AnalysisError> {
-    let mut dependencies = Vec::new();
-    let mut required_dependencies = Vec::new();
-    let mut extra_dependencies: HashMap<String, Vec<Dependency>> = HashMap::new();
+pub struct PyProjectToml {
+    /// All dependencies inclusive of all extras (excluding build dependencies)
+    all_dependencies: Vec<Dependency>,
+    /// Top level dependencies in the pyproject.toml file
+    required_dependencies: Vec<Dependency>,
+    /// Optional dependencies grouped by extra name
+    optional_dependencies: HashMap<String, Vec<Dependency>>,
+}
+
+impl PyProjectToml {
+    pub fn new() -> Self {
+        Self {
+            all_dependencies: Vec::new(),
+            required_dependencies: Vec::new(),
+            optional_dependencies: HashMap::new(),
+        }
+    }
+
+    pub fn all_dependencies(&self) -> Vec<Dependency> {
+        self.all_dependencies.clone()
+    }
+
+    pub fn required_dependencies(&self) -> &Vec<Dependency> {
+        &self.required_dependencies
+    }
+
+    pub fn optional_configurations(&self) -> Vec<&str> {
+        self.optional_dependencies
+            .keys()
+            .map(|s| s.as_str())
+            .collect()
+    }
+
+    pub fn get_dependencies_for_configuration(&self, configurations: &[&str]) -> Vec<Dependency> {
+        // extend all each optional dependency with the required dependencies
+        let mut dependencies = self.required_dependencies.clone();
+        for configuration in configurations {
+            if let Some(deps) = self.optional_dependencies.get(&configuration.to_string()) {
+                dependencies.extend(deps.clone());
+            }
+        }
+        dependencies
+    }
+}
+
+fn parse_table(table: &Value) -> Result<PyProjectToml, AnalysisError> {
+    let mut pyprojecttoml = PyProjectToml::new();
 
     if let Some(project_table) = table.get("project") {
         // Handle dependencies section
@@ -29,8 +72,8 @@ fn extract_dependencies_from_table(table: &Value) -> Result<Vec<Dependency>, Ana
                     for dep in dep_array {
                         if let Value::String(dep_str) = dep {
                             let dep = parse_dependency_string(dep_str)?;
-                            dependencies.push(dep.clone());
-                            required_dependencies.push(dep);
+                            pyprojecttoml.all_dependencies.push(dep.clone());
+                            pyprojecttoml.required_dependencies.push(dep);
                         }
                     }
                 }
@@ -39,8 +82,8 @@ fn extract_dependencies_from_table(table: &Value) -> Result<Vec<Dependency>, Ana
                         if let Value::String(version_str) = version {
                             let dep_str = format!("{} {}", name, version_str);
                             let dep = parse_dependency_string(&dep_str)?;
-                            dependencies.push(dep.clone());
-                            required_dependencies.push(dep);
+                            pyprojecttoml.all_dependencies.push(dep.clone());
+                            pyprojecttoml.required_dependencies.push(dep);
                         }
                     }
                 }
@@ -48,7 +91,7 @@ fn extract_dependencies_from_table(table: &Value) -> Result<Vec<Dependency>, Ana
                     return Err(AnalysisError::PyProjectTomlError(
                         "Invalid dependencies format".to_string(),
                     )
-                    .into())
+                    .into());
                 }
             }
         }
@@ -61,11 +104,12 @@ fn extract_dependencies_from_table(table: &Value) -> Result<Vec<Dependency>, Ana
                         for dep in dep_array {
                             if let Value::String(dep_str) = dep {
                                 let dep = parse_dependency_string(dep_str)?;
-                                extra_dependencies
+                                pyprojecttoml
+                                    .optional_dependencies
                                     .entry(group.clone())
                                     .or_insert(Vec::new())
                                     .push(dep.clone());
-                                dependencies.push(dep);
+                                pyprojecttoml.all_dependencies.push(dep);
                             }
                         }
                     }
@@ -74,20 +118,20 @@ fn extract_dependencies_from_table(table: &Value) -> Result<Vec<Dependency>, Ana
         }
     }
 
-    Ok(dependencies)
+    Ok(pyprojecttoml)
 }
 
-pub(crate) fn parse_dependencies_file(file_path: &Path) -> Result<Vec<Dependency>, AnalysisError> {
+pub(crate) fn parse(file_path: &Path) -> Result<PyProjectToml, AnalysisError> {
     let content = fs::read_to_string(file_path)
         .map_err(|e| AnalysisError::PyProjectTomlError(e.to_string()))?;
-    parse_dependencies(&content)
+    parse_contents(&content)
 }
 
-pub(crate) fn parse_dependencies(contents: &str) -> Result<Vec<Dependency>, AnalysisError> {
+pub(crate) fn parse_contents(contents: &str) -> Result<PyProjectToml, AnalysisError> {
     let toml_value: Value = contents
         .parse()
         .map_err(|_| AnalysisError::PyProjectTomlError("Invalid TOML".to_string()))?;
-    extract_dependencies_from_table(&toml_value)
+    parse_table(&toml_value)
 }
 
 #[cfg(test)]
@@ -103,10 +147,10 @@ dependencies = [
     "flask == 1.0.0",
 ]
 "#;
-        let deps = parse_dependencies(content)?;
+        let deps = parse_contents(content)?;
 
-        assert_eq!(deps.len(), 2);
-        match &deps[0] {
+        assert_eq!(deps.all_dependencies.len(), 2);
+        match &deps.all_dependencies[0] {
             Dependency::PyPI(req) => {
                 assert_eq!(req.name.as_ref(), "requests");
             }
@@ -128,10 +172,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest >= 6.0.0"]
 "#;
-        let deps = parse_dependencies(content)?;
+        let deps = parse_contents(content)?;
 
-        assert_eq!(deps.len(), 2);
-        match &deps[0] {
+        assert_eq!(deps.all_dependencies.len(), 2);
+        match &deps.all_dependencies[0] {
             Dependency::PyPI(req) => {
                 assert_eq!(req.name.as_ref(), "requests");
             }

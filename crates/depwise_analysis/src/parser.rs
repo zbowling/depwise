@@ -1,5 +1,5 @@
 use crate::error::AnalysisError;
-use rustpython_parser::{ast, Parse};
+use rustpython_parser::{Parse, ast};
 use tracing::{debug, instrument, trace};
 
 /// Represents a Python import statement
@@ -61,7 +61,8 @@ impl PythonParser {
                         line_number: self.get_line_number(import.range.start().into()),
                         relative_level: 0,
                         is_top_level_import: self.nesting_level == 0,
-                        is_likely_exception_guarded: self.in_try_block && self.has_import_error_handler,
+                        is_likely_exception_guarded: self.in_try_block
+                            && self.has_import_error_handler,
                     });
                 }
             }
@@ -163,7 +164,8 @@ impl PythonParser {
                                 if exception_name == "ImportError"
                                     || exception_name == "Exception"
                                     || exception_name == "BaseException"
-                                    || exception_name == "ModuleNotFoundError" {
+                                    || exception_name == "ModuleNotFoundError"
+                                {
                                     self.has_import_error_handler = true;
                                     break;
                                 }
@@ -237,7 +239,6 @@ impl PythonParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     fn init_tracing() {
         //let _ = tracing_subscriber::fmt()

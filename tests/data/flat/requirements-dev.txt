@@ -1,0 +1,4 @@
+# This dev dependency contains more dependencies than the main requirements.txt
+-r requirements.txt
+
+pandas

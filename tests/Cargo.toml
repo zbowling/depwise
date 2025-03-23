@@ -1,0 +1,15 @@
+[package]
+name = "tests"
+version.workspace = true
+edition.workspace = true
+
+[dev-dependencies]
+depwise = { workspace = true }
+depwise-analysis = { workspace = true }
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+
+
+[[test]]
+name = "cli_tests"
+path = "cli_tests.rs"

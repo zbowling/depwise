@@ -6,6 +6,8 @@ mod requirementstxt;
 use crate::error::AnalysisError;
 pub use pep508_rs::Requirement as PyPIRequirement;
 
+use crate::EnvironmentBuilderSource;
+
 use std::path::PathBuf;
 /// Implements a match spec for Conda packages. Follows the rules in https://github.com/conda/conda/blob/main/conda/models/match_spec.py#L569
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,19 +74,69 @@ pub enum Dependency {
     PackagePath(PathBuf),
 }
 
-pub fn parse_dependency_file(
-    source: crate::EnvironmentBuilderSource,
-) -> Result<Vec<Dependency>, AnalysisError> {
-    // If the file is a pyproject.toml, use the PyProjectTomlParser
-    match source {
-        crate::EnvironmentBuilderSource::PyProjectToml(path) => {
-            pyprojecttoml::parse_dependencies_file(&path)
+/// Represents a configuration of dependencies from the project
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Configuration {
+    /// The dependencies for the configuration
+    dependencies: Vec<Dependency>,
+
+    /// The name of the configuration
+    name: String,
+
+    /// The source of the configuration
+    source: EnvironmentBuilderSource,
+}
+
+impl Configuration {
+    pub fn new(
+        dependencies: Vec<Dependency>,
+        name: String,
+        source: EnvironmentBuilderSource,
+    ) -> Self {
+        Self {
+            dependencies,
+            name,
+            source,
         }
-        crate::EnvironmentBuilderSource::RequirementsTxt(path) => {
-            requirementstxt::parse_dependencies_file(&path)
+    }
+}
+
+/// Extract the the different configurations of dependencies from the project
+pub fn extract_configurations(
+    source: EnvironmentBuilderSource,
+) -> Result<Vec<Configuration>, AnalysisError> {
+    // If the file is a pyproject.toml, use the PyProjectTomlParser
+    match &source {
+        EnvironmentBuilderSource::PyProjectToml(path) => {
+            let pyproject = pyprojecttoml::parse(&path)?;
+            let mut configurations = Vec::new();
+
+            let configuration = Configuration::new(
+                pyproject.required_dependencies().clone(),
+                format!("{}", path.display().to_string()),
+                source.clone(),
+            );
+            configurations.push(configuration);
+
+            // Add all optional configurations
+            for configuration in pyproject.optional_configurations() {
+                let dependencies = pyproject.get_dependencies_for_configuration(&[configuration]);
+                configurations.push(Configuration::new(
+                    dependencies,
+                    format!("{}[{}]", path.display().to_string(), configuration),
+                    source.clone(),
+                ));
+            }
+            Ok(configurations)
+        }
+        EnvironmentBuilderSource::RequirementsTxt(path) => {
+            let dependencies = requirementstxt::parse(&path)?;
+            let configuration =
+                Configuration::new(dependencies, path.display().to_string(), source.clone());
+            Ok(vec![configuration])
         }
         //EnvironmentBuilderSource::CondaEnvironmentYml => condayml::parse_dependencies_file(file_path),
         //EnvironmentBuilderSource::PixiToml => pixitoml::parse_dependencies_file(file_path),
-        _ => Err(AnalysisError::UnsupportedDependencyFile(todo!())),
+        _ => Err(AnalysisError::UnsupportedProjectFormat(todo!())),
     }
 }

@@ -11,6 +11,9 @@ dependencies = [
     "numpy>=2.0.0",
 ]
 
+[console_scripts]
+hello = "pyproject_package.hello:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

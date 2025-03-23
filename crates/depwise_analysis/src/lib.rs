@@ -1,7 +1,7 @@
 pub mod env_backend;
-pub mod env_parser;
 pub mod error;
 pub mod parser;
+pub mod project;
 
 pub use error::AnalysisError;
 use std::path::Path;
@@ -88,7 +88,7 @@ pub fn analyze_project(
     }
 
     if let Some(environment) = environment_builder_source {
-        let dependencies = env_parser::parse_dependency_file(environment)?;
+        let dependencies = project::extract_configurations(environment)?;
         println!("dependencies: {:?}", dependencies);
     }
 

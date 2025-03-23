@@ -1,0 +1,21 @@
+[project]
+name = "pdm_test"
+version = "0.1.0"
+description = "Test thing for testing things"
+authors = [
+    {name = "Zac Bowling", email = "zac@zacbowling.com"},
+]
+dependencies = [
+    "requests>=2.32.3",
+]
+requires-python = ">=3.13"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = true
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
